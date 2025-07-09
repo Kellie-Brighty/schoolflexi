@@ -16,6 +16,8 @@ import {
   School,
   MapPin,
   Phone,
+  Heart,
+  Crown,
 } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
 import type { UserRole } from "../../types/auth";
@@ -71,13 +73,23 @@ const AcceptInvitationPage: React.FC = () => {
     // Teacher specific
     qualifications: "",
     experience: "",
+    subjectSpecialization: "",
     // Parent specific
     occupation: "",
     relationship: "father",
+    // Admin specific
+    adminResponsibilities: "",
+    managementExperience: "",
+    // Secretary specific
+    typingSpeed: "",
+    previousExperience: "",
+    computerSkills: "",
   });
 
-  // Get invitation token from URL
+  // Get invitation token and other params from URL
   const invitationToken = searchParams.get("token");
+  const schoolParam = searchParams.get("school");
+  const roleParam = searchParams.get("role") as UserRole;
 
   useEffect(() => {
     const fetchInvitationData = async () => {
@@ -91,27 +103,82 @@ const AcceptInvitationPage: React.FC = () => {
         // Simulate API call to fetch invitation data
         await new Promise((resolve) => setTimeout(resolve, 1500));
 
-        // Mock invitation data - replace with actual API call
+        // Extract role from URL parameters or decode from token
+        let detectedRole: UserRole = roleParam || "teacher"; // fallback to teacher
+
+        // Try to extract role from token if not in URL params
+        if (!roleParam && invitationToken.includes("_")) {
+          const tokenParts = invitationToken.split("_");
+          if (tokenParts.length > 1) {
+            const possibleRole = tokenParts[1].toLowerCase();
+            if (
+              [
+                "admin",
+                "teacher",
+                "student",
+                "parent",
+                "secretary",
+                "proprietor",
+              ].includes(possibleRole)
+            ) {
+              detectedRole = possibleRole as UserRole;
+            }
+          }
+        }
+
+        // School branding based on school code
+        const getSchoolBranding = (schoolCode: string) => {
+          switch (schoolCode) {
+            case "GHS001":
+              return {
+                primaryColor: "#1d4ed8",
+                secondaryColor: "#10b981",
+                accentColor: "#8b5cf6",
+              };
+            case "SMA001":
+              return {
+                primaryColor: "#dc2626",
+                secondaryColor: "#f59e0b",
+                accentColor: "#06b6d4",
+              };
+            case "OPS001":
+              return {
+                primaryColor: "#059669",
+                secondaryColor: "#7c3aed",
+                accentColor: "#f59e0b",
+              };
+            default:
+              return {
+                primaryColor: "#3B82F6",
+                secondaryColor: "#10B981",
+                accentColor: "#8b5cf6",
+              };
+          }
+        };
+
+        const currentSchool = schoolParam || "DEMO001";
+        const branding = getSchoolBranding(currentSchool);
+
+        // Mock invitation data with proper role detection
         const mockInvitation: InvitationData = {
-          id: "inv_001",
-          email: "john.smith@email.com",
-          role: "teacher",
+          id: invitationToken,
+          email: "john.smith@email.com", // In real app, this would come from the token
+          role: detectedRole, // Use detected role instead of hardcoded
           firstName: "John",
           lastName: "Smith",
-          schoolName: "Greenwood High School",
-          schoolCode: "GHS001",
+          schoolName:
+            currentSchool === "GHS001"
+              ? "Greenwood High School"
+              : currentSchool === "SMA001"
+              ? "St. Mary's Academy"
+              : currentSchool === "OPS001"
+              ? "Oakwood Primary School"
+              : "Demo School",
+          schoolCode: currentSchool,
           invitedBy: "Dr. Sarah Johnson",
           expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-          additionalInfo: {
-            department: "Mathematics",
-            employeeId: "EMP001",
-          },
-          schoolBranding: {
-            primaryColor: "#2563eb",
-            secondaryColor: "#10b981",
-            accentColor: "#f59e0b",
-            logo: undefined,
-          },
+          additionalInfo: getAdditionalInfoForRole(detectedRole),
+          schoolBranding: branding,
         };
 
         setInvitationData(mockInvitation);
@@ -123,7 +190,25 @@ const AcceptInvitationPage: React.FC = () => {
     };
 
     fetchInvitationData();
-  }, [invitationToken]);
+  }, [invitationToken, schoolParam, roleParam]);
+
+  // Get role-specific additional info
+  const getAdditionalInfoForRole = (role: UserRole) => {
+    switch (role) {
+      case "teacher":
+        return { department: "Mathematics", employeeId: "EMP001" };
+      case "student":
+        return { classGrade: "grade-10", studentId: "STU001" };
+      case "admin":
+        return { department: "Administration", employeeId: "ADM001" };
+      case "secretary":
+        return { department: "Administration", employeeId: "SEC001" };
+      case "parent":
+        return { studentId: "STU002" };
+      default:
+        return {};
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -141,12 +226,23 @@ const AcceptInvitationPage: React.FC = () => {
       return;
     }
 
+    // Role-specific validation
+    if (invitationData.role === "student" && !formData.parentEmail) {
+      setError("Parent email is required for student accounts");
+      return;
+    }
+
+    if (invitationData.role === "parent" && !formData.relationship) {
+      setError("Relationship to student is required");
+      return;
+    }
+
     setIsSubmitting(true);
     setError(null);
 
     try {
-      // Create user account
-      await register({
+      // Create user account with role-specific data
+      const registrationData = {
         email: invitationData.email,
         firstName: invitationData.firstName,
         lastName: invitationData.lastName,
@@ -154,6 +250,12 @@ const AcceptInvitationPage: React.FC = () => {
         schoolCode: invitationData.schoolCode,
         schoolName: invitationData.schoolName,
         password: formData.password,
+        phone: formData.phone,
+        address: formData.address,
+        dateOfBirth: formData.dateOfBirth,
+        emergencyContact: formData.emergencyContact,
+        emergencyPhone: formData.emergencyPhone,
+        // Role-specific fields
         ...(invitationData.role === "student" && {
           studentId: invitationData.additionalInfo?.studentId,
           classGrade: invitationData.additionalInfo?.classGrade,
@@ -162,10 +264,31 @@ const AcceptInvitationPage: React.FC = () => {
         ...(invitationData.role === "teacher" && {
           employeeId: invitationData.additionalInfo?.employeeId,
           department: invitationData.additionalInfo?.department,
+          qualifications: formData.qualifications,
+          experience: formData.experience,
+          subjectSpecialization: formData.subjectSpecialization,
         }),
-        phone: formData.phone,
-        address: formData.address,
-      });
+        ...(invitationData.role === "parent" && {
+          occupation: formData.occupation,
+          relationship: formData.relationship,
+          parentStudentId: invitationData.additionalInfo?.studentId,
+        }),
+        ...(invitationData.role === "admin" && {
+          employeeId: invitationData.additionalInfo?.employeeId,
+          department: invitationData.additionalInfo?.department,
+          adminResponsibilities: formData.adminResponsibilities,
+          managementExperience: formData.managementExperience,
+        }),
+        ...(invitationData.role === "secretary" && {
+          employeeId: invitationData.additionalInfo?.employeeId,
+          department: invitationData.additionalInfo?.department,
+          typingSpeed: formData.typingSpeed,
+          previousExperience: formData.previousExperience,
+          computerSkills: formData.computerSkills,
+        }),
+      };
+
+      await register(registrationData);
 
       // Success - user is now logged in, redirect to school landing page
       navigate("/school");
@@ -183,11 +306,13 @@ const AcceptInvitationPage: React.FC = () => {
       case "student":
         return <GraduationCap className="w-6 h-6" />;
       case "parent":
-        return <User className="w-6 h-6" />;
+        return <Heart className="w-6 h-6" />;
       case "secretary":
         return <FileText className="w-6 h-6" />;
       case "admin":
         return <ShieldCheck className="w-6 h-6" />;
+      case "proprietor":
+        return <Crown className="w-6 h-6" />;
       default:
         return <User className="w-6 h-6" />;
     }
@@ -200,11 +325,13 @@ const AcceptInvitationPage: React.FC = () => {
       case "student":
         return "green";
       case "parent":
-        return "purple";
+        return "pink";
       case "secretary":
         return "orange";
       case "admin":
         return "red";
+      case "proprietor":
+        return "purple";
       default:
         return "gray";
     }
@@ -252,16 +379,54 @@ const AcceptInvitationPage: React.FC = () => {
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-primary-500"
               />
             </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Emergency Contact
+                </label>
+                <input
+                  type="text"
+                  value={formData.emergencyContact}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      emergencyContact: e.target.value,
+                    }))
+                  }
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-primary-500"
+                  placeholder="Emergency contact name"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Emergency Phone
+                </label>
+                <input
+                  type="tel"
+                  value={formData.emergencyPhone}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      emergencyPhone: e.target.value,
+                    }))
+                  }
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-primary-500"
+                  placeholder="+234 xxx xxx xxxx"
+                />
+              </div>
+            </div>
           </div>
         );
+
       case "teacher":
         return (
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Qualifications
+                Qualifications <span className="text-red-500">*</span>
               </label>
               <textarea
+                required
                 value={formData.qualifications}
                 onChange={(e) =>
                   setFormData((prev) => ({
@@ -274,68 +439,289 @@ const AcceptInvitationPage: React.FC = () => {
                 placeholder="B.Ed Mathematics, M.Sc Mathematics"
               />
             </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Teaching Experience
+                </label>
+                <input
+                  type="text"
+                  value={formData.experience}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      experience: e.target.value,
+                    }))
+                  }
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-primary-500"
+                  placeholder="5 years"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Subject Specialization
+                </label>
+                <input
+                  type="text"
+                  value={formData.subjectSpecialization}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      subjectSpecialization: e.target.value,
+                    }))
+                  }
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-primary-500"
+                  placeholder="Mathematics, Physics"
+                />
+              </div>
+            </div>
+          </div>
+        );
+
+      case "parent":
+        return (
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Relationship to Student{" "}
+                  <span className="text-red-500">*</span>
+                </label>
+                <select
+                  required
+                  value={formData.relationship}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      relationship: e.target.value,
+                    }))
+                  }
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-primary-500"
+                >
+                  <option value="father">Father</option>
+                  <option value="mother">Mother</option>
+                  <option value="guardian">Guardian</option>
+                  <option value="grandparent">Grandparent</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Occupation
+                </label>
+                <input
+                  type="text"
+                  value={formData.occupation}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      occupation: e.target.value,
+                    }))
+                  }
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-primary-500"
+                  placeholder="Engineer, Doctor, etc."
+                />
+              </div>
+            </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Teaching Experience
+                Emergency Contact (if different from yourself)
               </label>
               <input
                 type="text"
-                value={formData.experience}
+                value={formData.emergencyContact}
                 onChange={(e) =>
                   setFormData((prev) => ({
                     ...prev,
-                    experience: e.target.value,
+                    emergencyContact: e.target.value,
                   }))
                 }
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-primary-500"
-                placeholder="5 years"
+                placeholder="Emergency contact name and phone"
               />
             </div>
           </div>
         );
-      case "parent":
+
+      case "admin":
         return (
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Relationship to Student <span className="text-red-500">*</span>
+                Administrative Responsibilities{" "}
+                <span className="text-red-500">*</span>
               </label>
-              <select
+              <textarea
                 required
-                value={formData.relationship}
+                value={formData.adminResponsibilities}
                 onChange={(e) =>
                   setFormData((prev) => ({
                     ...prev,
-                    relationship: e.target.value,
+                    adminResponsibilities: e.target.value,
                   }))
                 }
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-primary-500"
-              >
-                <option value="father">Father</option>
-                <option value="mother">Mother</option>
-                <option value="guardian">Guardian</option>
-                <option value="other">Other</option>
-              </select>
+                rows={3}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-primary-500 resize-none"
+                placeholder="Student management, academic oversight, staff coordination..."
+              />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Occupation
+                Management Experience
               </label>
               <input
                 type="text"
-                value={formData.occupation}
+                value={formData.managementExperience}
                 onChange={(e) =>
                   setFormData((prev) => ({
                     ...prev,
-                    occupation: e.target.value,
+                    managementExperience: e.target.value,
                   }))
                 }
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-primary-500"
-                placeholder="Engineer"
+                placeholder="10 years in educational administration"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Educational Qualifications
+              </label>
+              <input
+                type="text"
+                value={formData.qualifications}
+                onChange={(e) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    qualifications: e.target.value,
+                  }))
+                }
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-primary-500"
+                placeholder="M.Ed Administration, B.Ed, etc."
               />
             </div>
           </div>
         );
+
+      case "secretary":
+        return (
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Typing Speed (WPM)
+                </label>
+                <input
+                  type="number"
+                  value={formData.typingSpeed}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      typingSpeed: e.target.value,
+                    }))
+                  }
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-primary-500"
+                  placeholder="60"
+                  min="0"
+                  max="200"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Previous Experience
+                </label>
+                <input
+                  type="text"
+                  value={formData.previousExperience}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      previousExperience: e.target.value,
+                    }))
+                  }
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-primary-500"
+                  placeholder="3 years as administrative assistant"
+                />
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Computer Skills <span className="text-red-500">*</span>
+              </label>
+              <textarea
+                required
+                value={formData.computerSkills}
+                onChange={(e) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    computerSkills: e.target.value,
+                  }))
+                }
+                rows={2}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-primary-500 resize-none"
+                placeholder="Microsoft Office Suite, Google Workspace, database management..."
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Educational Background
+              </label>
+              <input
+                type="text"
+                value={formData.qualifications}
+                onChange={(e) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    qualifications: e.target.value,
+                  }))
+                }
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-primary-500"
+                placeholder="High School Diploma, Certificate in Office Administration"
+              />
+            </div>
+          </div>
+        );
+
+      case "proprietor":
+        return (
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Leadership Experience <span className="text-red-500">*</span>
+              </label>
+              <textarea
+                required
+                value={formData.managementExperience}
+                onChange={(e) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    managementExperience: e.target.value,
+                  }))
+                }
+                rows={3}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-primary-500 resize-none"
+                placeholder="Educational leadership, business management, institutional oversight..."
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Educational Qualifications
+              </label>
+              <input
+                type="text"
+                value={formData.qualifications}
+                onChange={(e) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    qualifications: e.target.value,
+                  }))
+                }
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-primary-500"
+                placeholder="Ph.D Education, MBA, M.Ed, etc."
+              />
+            </div>
+          </div>
+        );
+
       default:
         return null;
     }
@@ -401,13 +787,13 @@ const AcceptInvitationPage: React.FC = () => {
 
   return (
     <div
-      className="min-h-screen flex items-center justify-center"
+      className="min-h-screen flex items-center justify-center p-4"
       style={brandingStyle}
     >
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full mx-4 overflow-hidden"
+        className="bg-white rounded-2xl shadow-2xl max-w-3xl w-full mx-4 overflow-hidden"
       >
         {/* Header */}
         <div className="p-8 text-center" style={brandingStyle}>
@@ -428,7 +814,7 @@ const AcceptInvitationPage: React.FC = () => {
             </h1>
           </div>
           <p className="text-white/90">
-            Complete your account setup to get started
+            Complete your {invitationData.role} account setup to get started
           </p>
         </div>
 
@@ -442,16 +828,24 @@ const AcceptInvitationPage: React.FC = () => {
                   invitationData.role
                 )}-100 rounded-xl flex items-center justify-center`}
               >
-                {getRoleIcon(invitationData.role)}
+                <div
+                  className={`text-${getRoleColor(invitationData.role)}-600`}
+                >
+                  {getRoleIcon(invitationData.role)}
+                </div>
               </div>
               <div>
                 <h3 className="text-lg font-semibold text-gray-900">
                   Welcome, {invitationData.firstName}!
                 </h3>
                 <p className="text-gray-600">
-                  You've been invited to join as a{" "}
-                  <span className="font-medium capitalize">
-                    {invitationData.role}
+                  You've been invited to join as{" "}
+                  <span className="font-medium capitalize bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                    {invitationData.role === "admin"
+                      ? "an Administrator"
+                      : invitationData.role === "proprietor"
+                      ? "the Proprietor"
+                      : `a ${invitationData.role}`}
                   </span>
                 </p>
               </div>
@@ -492,7 +886,10 @@ const AcceptInvitationPage: React.FC = () => {
           {/* Account Setup Form */}
           <form onSubmit={handleSubmit} className="space-y-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">
-              Create Your Account
+              Create Your{" "}
+              {invitationData.role.charAt(0).toUpperCase() +
+                invitationData.role.slice(1)}{" "}
+              Account
             </h3>
 
             {error && (
@@ -623,8 +1020,16 @@ const AcceptInvitationPage: React.FC = () => {
             <motion.button
               type="submit"
               disabled={isSubmitting}
-              className="w-full bg-primary-500 text-white py-3 px-6 rounded-lg hover:bg-primary-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
-              whileHover={{ scale: isSubmitting ? 1 : 1.02 }}
+              className="w-full text-white py-3 px-6 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+              style={{
+                backgroundColor:
+                  invitationData.schoolBranding?.primaryColor || "#3B82F6",
+              }}
+              whileHover={{
+                scale: isSubmitting ? 1 : 1.02,
+                backgroundColor:
+                  invitationData.schoolBranding?.secondaryColor || "#10B981",
+              }}
               whileTap={{ scale: isSubmitting ? 1 : 0.98 }}
             >
               {isSubmitting ? (
@@ -635,7 +1040,10 @@ const AcceptInvitationPage: React.FC = () => {
               ) : (
                 <>
                   <CheckCircle className="w-4 h-4" />
-                  Create Account & Continue
+                  Create{" "}
+                  {invitationData.role.charAt(0).toUpperCase() +
+                    invitationData.role.slice(1)}{" "}
+                  Account
                   <ArrowRight className="w-4 h-4" />
                 </>
               )}

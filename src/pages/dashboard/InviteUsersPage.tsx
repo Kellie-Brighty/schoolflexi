@@ -84,10 +84,10 @@ const InviteUsersPage: React.FC = () => {
 
       console.log("Sending invitation:", formData);
 
-      // Generate invitation URL (in real app, this would be returned from API)
-      const invitationToken = "inv_token_" + Date.now();
+      // Generate invitation URL with role information (in real app, this would be returned from API)
+      const invitationToken = `inv_${formData.role}_${Date.now()}`;
       const schoolCode = user?.schoolCode || "DEFAULT";
-      const generatedUrl = `${window.location.origin}/auth/accept-invitation?token=${invitationToken}&school=${schoolCode}`;
+      const generatedUrl = `${window.location.origin}/auth/accept-invitation?token=${invitationToken}&school=${schoolCode}&role=${formData.role}`;
       console.log("Invitation URL:", generatedUrl);
 
       // Store the invitation URL and user data to display to user
