@@ -1,0 +1,155 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap");
+
+/* Global styles for School Management System */
+@layer base {
+  :root {
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+
+    /* Custom gradient variables - Light theme */
+    --gradient-primary: linear-gradient(135deg, #4a90e2 0%, #1dd1a1 100%);
+    --gradient-secondary: linear-gradient(135deg, #1dd1a1 0%, #4a90e2 100%);
+    --gradient-light: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+    --gradient-glass: linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.9) 0%,
+      rgba(255, 255, 255, 0.7) 100%
+    );
+  }
+
+  * {
+    @apply border-gray-200;
+  }
+
+  body {
+    @apply bg-gray-50 text-gray-900 font-sans overflow-x-hidden;
+    margin: 0;
+    min-height: 100vh;
+    background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    @apply font-bold text-gray-900;
+    font-family: "Space Grotesk", sans-serif;
+  }
+
+  p {
+    @apply text-gray-600;
+  }
+
+  a {
+    @apply text-primary-500 hover:text-primary-600 transition-colors;
+  }
+}
+
+/* Custom components */
+@layer components {
+  .glass-effect {
+    background: rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    box-shadow: 0 8px 32px rgba(74, 144, 226, 0.1);
+  }
+
+  .gradient-text {
+    background: linear-gradient(135deg, #4a90e2, #1dd1a1);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .floating-animation {
+    animation: floating 6s ease-in-out infinite;
+  }
+
+  @keyframes floating {
+    0%,
+    100% {
+      transform: translateY(0px);
+    }
+    50% {
+      transform: translateY(-10px);
+    }
+  }
+
+  .pulse-glow {
+    animation: pulse-glow 4s ease-in-out infinite;
+  }
+
+  @keyframes pulse-glow {
+    0%,
+    100% {
+      box-shadow: 0 0 20px rgba(74, 144, 226, 0.3);
+    }
+    50% {
+      box-shadow: 0 0 40px rgba(74, 144, 226, 0.5),
+        0 0 60px rgba(74, 144, 226, 0.2);
+    }
+  }
+
+  .card-glass {
+    background: rgba(255, 255, 255, 0.8);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    box-shadow: 0 8px 32px rgba(74, 144, 226, 0.1);
+  }
+
+  .btn-primary-modern {
+    @apply relative overflow-hidden bg-primary-500 text-white font-semibold;
+    box-shadow: 0 4px 15px rgba(74, 144, 226, 0.3);
+    transition: all 0.3s ease;
+  }
+
+  .btn-primary-modern:hover {
+    box-shadow: 0 6px 20px rgba(74, 144, 226, 0.4);
+    transform: translateY(-2px);
+  }
+
+  .btn-secondary-modern {
+    @apply relative overflow-hidden bg-secondary-500 text-white font-semibold;
+    box-shadow: 0 4px 15px rgba(29, 209, 161, 0.3);
+    transition: all 0.3s ease;
+  }
+
+  .btn-secondary-modern:hover {
+    box-shadow: 0 6px 20px rgba(29, 209, 161, 0.4);
+    transform: translateY(-2px);
+  }
+
+  .feature-card {
+    @apply card-glass rounded-xl p-6 transition-all duration-300 hover:scale-105;
+    border: 1px solid rgba(74, 144, 226, 0.1);
+  }
+
+  .feature-card:hover {
+    border: 1px solid rgba(74, 144, 226, 0.3);
+    box-shadow: 0 20px 40px rgba(74, 144, 226, 0.15);
+  }
+
+  .nav-glass {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid rgba(74, 144, 226, 0.1);
+    box-shadow: 0 2px 20px rgba(74, 144, 226, 0.1);
+  }
+
+  .stats-counter {
+    font-family: "Space Grotesk", sans-serif;
+    font-weight: 700;
+    background: linear-gradient(135deg, #4a90e2, #1dd1a1);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+}
